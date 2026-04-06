@@ -679,6 +679,46 @@ int background_w_fld(
   case CLP:
     *w_fld = pba->w0_fld + pba->wa_fld * (1. - a);
     break;
+   
+   
+  case WGB:
+{
+    // Retrieve your custom parameter
+    double Cn = pba->Cn_wgb;
+
+    // --- 1. Calculate the Integral (Iz) using the Log-Space Tanh Approximation ---
+    double fit_A = -7.33490286e-02;
+    double fit_B = -1.74938682e+00;
+    double fit_C = -1.82962914e+00;
+    double fit_D = -1.92439539e-03;
+
+    // Protect against log(0) at the very early universe
+    double log_a = (a > 1e-15) ? log(a) : log(1e-15);
+    
+    // Evaluate the boundary condition so Iz(a=1) = 0
+    double boundary_term = tanh(fit_C); 
+
+    // The actual Iz value for this scale factor
+    double Iz = fit_A * (tanh(fit_B * log_a + fit_C) + fit_D * log_a - boundary_term);
+    // -----------------------------------------------------------------------------
+
+    // --- 2. Calculate the Star Formation Rate psi(a) ---
+    // Mathematically: 0.015 * a^(-2.7) / (1 + (2.9a)^(-5.6))
+    double term2 = pow(2.9 * a, -5.6);
+    double psi = (0.015 * pow(a, -2.7)) / (1.0 + term2);
+
+    // --- 3. Assemble the Equation of State w(a) ---
+    double num = 8.0 * Cn * psi;
+    
+    // Total matter and radiation (assuming Omega0_g covers all radiation in your setup)
+    double denom1 = 3.0 * (1.0 - (pba->Omega0_b + pba->Omega0_cdm + pba->Omega0_g));
+    double denom2 = 6.0 * Cn * Iz; 
+    
+    *w_fld = -1.0 - (num / (denom1 + denom2));
+}
+break;
+
+    
   case EDE:
     // Omega_ede(a) taken from eq. (10) in 1706.00730
     Omega_ede = (pba->Omega0_fld - pba->Omega_EDE*(1.-pow(a,-3.*pba->w0_fld)))
@@ -714,6 +754,52 @@ int background_w_fld(
   case CLP:
     *dw_over_da_fld = - pba->wa_fld;
     break;
+  case WGB:
+{
+    // Retrieve cosmological parameters
+    double Cn = pba->Cn_wgb;
+    double Om0 = pba->Omega0_b + pba->Omega0_cdm;
+    double Or0 = pba->Omega0_g;
+    
+    // --- 1. Calculate the Integral (Iz) using the Log-Space Tanh Approximation ---
+    double fit_A = -7.33490286e-02;
+    double fit_B = -1.74938682e+00;
+    double fit_C = -1.82962914e+00;
+    double fit_D = -1.92439539e-03;
+
+    // Protect against log(0) at the absolute beginning of time
+    double log_a = (a > 1e-15) ? log(a) : log(1e-15);
+    
+    // Evaluate the boundary condition so Iz(a=1) = 0
+    double boundary_term = tanh(fit_C); 
+
+    // The actual Iz value for this scale factor
+    double Iz = fit_A * (tanh(fit_B * log_a + fit_C) + fit_D * log_a - boundary_term);
+    // -----------------------------------------------------------------------------
+
+    // 2. Pre-calculate common powers for psi(a)
+    double a_pow_n2_7 = pow(a, -2.7);
+    double inv_term_2_9a_5_6 = pow(2.9 * a, -5.6);
+    double denominator_psi = 1.0 + inv_term_2_9a_5_6;
+
+    // 3. Calculate psi(a)
+    double psi_a = (0.015 * a_pow_n2_7) / denominator_psi;
+
+    // 4. Calculate the derivative psi'(a)
+    // Using the power rule and quotient rule combined:
+    double dpsi_da = psi_a * ((-2.7 / a) + (5.6 * inv_term_2_9a_5_6) / (a * denominator_psi));
+
+    // 5. Calculate the main denominator D(a)
+    double Da = 3.0 * (1.0 - Om0 - Or0) + 6.0 * Cn * Iz;
+
+    // 6. Final derivative dw/da
+    // Formula: dw/da = (8*Cn / Da^2) * [ (6*Cn*psi^2 / a) - (dpsi_da * Da) ]
+    double term_sq = (6.0 * Cn * psi_a * psi_a) / a;
+    double numerator_w = term_sq - (dpsi_da * Da);
+    
+    *dw_over_da_fld = (8.0 * Cn / (Da * Da)) * numerator_w;
+}
+break;  
   case EDE:
     d2Omega_ede_over_da2 = 0.;
     *dw_over_da_fld = - d2Omega_ede_over_da2*a/3./(1.-Omega_ede)/Omega_ede
@@ -737,6 +823,46 @@ int background_w_fld(
   case CLP:
     *integral_fld = 3.*((1.+pba->w0_fld+pba->wa_fld)*log(1./a) + pba->wa_fld*(a-1.));
     break;
+  case WGB:
+{
+    // Retrieve cosmological parameters
+    double Cn = pba->Cn_wgb;
+    double Om0 = pba->Omega0_b + pba->Omega0_cdm;
+    double Or0 = pba->Omega0_g;
+
+    // --- 1. Calculate the Integral (Iz_a) using the Log-Space Tanh Approximation ---
+    double fit_A = -7.33490286e-02;
+    double fit_B = -1.74938682e+00;
+    double fit_C = -1.82962914e+00;
+    double fit_D = -1.92439539e-03;
+
+    // Protect against log(0) at the absolute beginning of time
+    double log_a = (a > 1e-15) ? log(a) : log(1e-15);
+    
+    // Evaluate the boundary condition
+    double boundary_term = tanh(fit_C); 
+
+    // The actual Iz value for the current scale factor 'a'
+    double Iz_a = fit_A * (tanh(fit_B * log_a + fit_C) + fit_D * log_a - boundary_term);
+    // -----------------------------------------------------------------------------
+
+    // 2. Calculate the denominator D at point a
+    double Da = 3.0 * (1.0 - Om0 - Or0) + 6.0 * Cn * Iz_a;
+
+    // 3. Calculate the denominator D at point a0 (where a0 = 1)
+    // Since Iz(a=1) = 0.0 by definition, the 6*Cn*Iz term vanishes entirely!
+    double Da0 = 3.0 * (1.0 - Om0 - Or0);
+
+    // 4. Compute the final integral result: -4 * ln(Da / Da0)
+    // We keep your safety check to prevent ln(negative) in extreme parameter spaces
+    if (Da > 0.0 && Da0 > 0.0) {
+        *integral_fld = -4.0 * log(Da / Da0);
+    } else {
+        // Fallback for non-physical parameter spaces during MCMC sampling
+        *integral_fld = 0.0; 
+    }
+}
+break;  
   case EDE:
     class_stop(pba->error_message,"EDE implementation not finished: to finish it, read the comments in background.c just before this line\n");
     break;

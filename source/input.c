@@ -3294,6 +3294,9 @@ int input_read_parameters_species(struct file_content * pfc,
       else if ((strstr(string1,"EDE") != NULL) || (strstr(string1,"ede") != NULL)) {
         pba->fluid_equation_of_state = EDE;
       }
+       else if ((strstr(string1,"WGB") != NULL) || (strstr(string1,"wgb") != NULL)) {
+        pba->fluid_equation_of_state = WGB;
+      }
       else {
         class_stop(errmsg,"incomprehensible input '%s' for the field 'fluid_equation_of_state'",string1);
       }
@@ -3305,6 +3308,12 @@ int input_read_parameters_species(struct file_content * pfc,
       class_read_double("w0_fld",pba->w0_fld);
       class_read_double("wa_fld",pba->wa_fld);
       class_read_double("cs2_fld",pba->cs2_fld);
+    }
+    if (pba->fluid_equation_of_state == WGB) {
+      /** 8.a.2.2) Equation of state of the fluid in 'CLP' case */
+      /* Read */
+      class_read_double("Cn_wgb",pba->Cn_wgb);
+      
     }
     if (pba->fluid_equation_of_state == EDE) {
       /** 8.a.2.3) Equation of state of the fluid in 'EDE' case */

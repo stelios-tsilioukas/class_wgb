@@ -710,11 +710,14 @@ int background_w_fld(
     // --- 3. Assemble the Equation of State w(a) ---
     double num = 8.0 * Cn * psi;
     
-    // Total matter and radiation (assuming Omega0_g covers all radiation in your setup)
+    // Total matter and radiation 
     double denom1 = 3.0 * (1.0 - (pba->Omega0_b + pba->Omega0_cdm + pba->Omega0_g));
+    
+    // The integral term
     double denom2 = 6.0 * Cn * Iz; 
     
-    *w_fld = -1.0 - (num / (denom1 + denom2));
+    // FINAL FIX: Subtract denom2 to match the analytical transformation from z to a!
+    *w_fld = -1.0 - (num / (denom1 - denom2));
 }
 break;
 
@@ -754,7 +757,7 @@ break;
   case CLP:
     *dw_over_da_fld = - pba->wa_fld;
     break;
-  case WGB:
+case WGB:
 {
     // Retrieve cosmological parameters
     double Cn = pba->Cn_wgb;
@@ -790,16 +793,20 @@ break;
     double dpsi_da = psi_a * ((-2.7 / a) + (5.6 * inv_term_2_9a_5_6) / (a * denominator_psi));
 
     // 5. Calculate the main denominator D(a)
-    double Da = 3.0 * (1.0 - Om0 - Or0) + 6.0 * Cn * Iz;
+    // FIX 1: Subtracted the integral term
+    double Da = 3.0 * (1.0 - Om0 - Or0) - 6.0 * Cn * Iz;
 
     // 6. Final derivative dw/da
-    // Formula: dw/da = (8*Cn / Da^2) * [ (6*Cn*psi^2 / a) - (dpsi_da * Da) ]
+    // Formula: dw/da = (-8*Cn / Da^2) * [ (dpsi_da * Da) + (6*Cn*psi^2 / a) ]
     double term_sq = (6.0 * Cn * psi_a * psi_a) / a;
-    double numerator_w = term_sq - (dpsi_da * Da);
+    
+    // FIX 2: Both terms are mathematically negative when expanded
+    double numerator_w = -(dpsi_da * Da) - term_sq;
     
     *dw_over_da_fld = (8.0 * Cn / (Da * Da)) * numerator_w;
+    
 }
-break;  
+break; 
   case EDE:
     d2Omega_ede_over_da2 = 0.;
     *dw_over_da_fld = - d2Omega_ede_over_da2*a/3./(1.-Omega_ede)/Omega_ede
@@ -847,7 +854,8 @@ break;
     // -----------------------------------------------------------------------------
 
     // 2. Calculate the denominator D at point a
-    double Da = 3.0 * (1.0 - Om0 - Or0) + 6.0 * Cn * Iz_a;
+    // FIX: Subtracted the integral term to match analytical transformation!
+    double Da = 3.0 * (1.0 - Om0 - Or0) - 6.0 * Cn * Iz_a;
 
     // 3. Calculate the denominator D at point a0 (where a0 = 1)
     // Since Iz(a=1) = 0.0 by definition, the 6*Cn*Iz term vanishes entirely!
@@ -862,7 +870,7 @@ break;
         *integral_fld = 0.0; 
     }
 }
-break;  
+break;
   case EDE:
     class_stop(pba->error_message,"EDE implementation not finished: to finish it, read the comments in background.c just before this line\n");
     break;

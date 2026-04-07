@@ -129,6 +129,69 @@
  * @return the error status
  */
 
+
+/**
+ * Initialize the cubic spline table for the WGB integral Iz(a).
+ * This executes ONCE per MCMC step before the ODE solver starts.
+ */
+int background_wgb_spline_init(struct background *pba) {
+
+    // 1. Set resolution (1000 points is extremely precise for a smooth curve)
+    pba->wgb_spline_size = 1000;
+
+    // 2. Allocate memory for the arrays
+    class_alloc(pba->wgb_a_array, pba->wgb_spline_size * sizeof(double), pba->error_message);
+    class_alloc(pba->wgb_Iz_array, pba->wgb_spline_size * sizeof(double), pba->error_message);
+    class_alloc(pba->wgb_ddIz_array, pba->wgb_spline_size * sizeof(double), pba->error_message);
+
+    // 3. Create a logarithmic grid for the scale factor 'a' (from 1e-14 to 1.0)
+    double a_min = 1e-14;
+    double a_max = 1.0;
+    double dln_a = log(a_max / a_min) / (pba->wgb_spline_size - 1);
+
+    for (int i = 0; i < pba->wgb_spline_size; i++) {
+        pba->wgb_a_array[i] = a_min * exp(i * dln_a);
+    }
+
+    // 4. Numerically integrate psi(a)/a using the Trapezoidal Rule
+    pba->wgb_Iz_array[0] = 0.0; // Start at 0 for the early universe
+
+    for (int i = 1; i < pba->wgb_spline_size; i++) {
+        double a_prev = pba->wgb_a_array[i-1];
+        double a_curr = pba->wgb_a_array[i];
+        
+        // Calculate psi at previous and current steps
+        double psi_prev = (0.015 * pow(a_prev, -2.7)) / (1.0 + pow(2.9 * a_prev, -5.6));
+        double psi_curr = (0.015 * pow(a_curr, -2.7)) / (1.0 + pow(2.9 * a_curr, -5.6));
+        
+        double integrand_prev = psi_prev / a_prev;
+        double integrand_curr = psi_curr / a_curr;
+        
+        // Add the trapezoid slice to the running total
+        pba->wgb_Iz_array[i] = pba->wgb_Iz_array[i-1] + 0.5 * (integrand_prev + integrand_curr) * (a_curr - a_prev);
+    }
+
+    // 5. Shift the entire curve so the boundary condition Iz(1) = 0 is exact
+    double Iz_at_today = pba->wgb_Iz_array[pba->wgb_spline_size - 1];
+    for (int i = 0; i < pba->wgb_spline_size; i++) {
+        pba->wgb_Iz_array[i] -= Iz_at_today; 
+    }
+
+    // 6. Build the 2nd derivatives using CLASS's built-in spline engine
+    class_call(array_spline_table_lines(
+        pba->wgb_a_array, 
+        pba->wgb_spline_size, 
+        pba->wgb_Iz_array, 
+        1, 
+        pba->wgb_ddIz_array, 
+        _SPLINE_EST_DERIV_, 
+        pba->error_message),
+        pba->error_message, pba->error_message);
+
+    return _SUCCESS_;
+}
+
+
 int background_at_z(
                     struct background *pba,
                     double z,
@@ -686,21 +749,23 @@ int background_w_fld(
     // Retrieve your custom parameter
     double Cn = pba->Cn_wgb;
 
-    // --- 1. Calculate the Integral (Iz) using the Log-Space Tanh Approximation ---
-    double fit_A = -7.33490286e-02;
-    double fit_B = -1.74938682e+00;
-    double fit_C = -1.82962914e+00;
-    double fit_D = -1.92439539e-03;
-
-    // Protect against log(0) at the very early universe
-    double log_a = (a > 1e-15) ? log(a) : log(1e-15);
+    // --- 1. Fetch the exact Integral (Iz) using the Spline Table ---
+    double Iz; // or Iz_a depending on your naming
+    int last_index = 0; // Optimizer for the spline search
     
-    // Evaluate the boundary condition so Iz(a=1) = 0
-    double boundary_term = tanh(fit_C); 
-
-    // The actual Iz value for this scale factor
-    double Iz = fit_A * (tanh(fit_B * log_a + fit_C) + fit_D * log_a - boundary_term);
-    // -----------------------------------------------------------------------------
+    class_call(array_interpolate_spline(
+        pba->wgb_a_array,
+        pba->wgb_spline_size,
+        pba->wgb_Iz_array,
+        pba->wgb_ddIz_array,
+        1,       // Number of columns to evaluate
+        a,       // The current scale factor the ODE solver is at
+        &last_index,
+        &Iz,     // The output variable
+        1,       // Output array size
+        pba->error_message),
+        pba->error_message, pba->error_message);
+    // ---------------------------------------------------------------
 
     // --- 2. Calculate the Star Formation Rate psi(a) ---
     // Mathematically: 0.015 * a^(-2.7) / (1 + (2.9a)^(-5.6))
@@ -764,22 +829,23 @@ case WGB:
     double Om0 = pba->Omega0_b + pba->Omega0_cdm;
     double Or0 = pba->Omega0_g;
     
-    // --- 1. Calculate the Integral (Iz) using the Log-Space Tanh Approximation ---
-    double fit_A = -7.33490286e-02;
-    double fit_B = -1.74938682e+00;
-    double fit_C = -1.82962914e+00;
-    double fit_D = -1.92439539e-03;
-
-    // Protect against log(0) at the absolute beginning of time
-    double log_a = (a > 1e-15) ? log(a) : log(1e-15);
+    // --- 1. Fetch the exact Integral (Iz) using the Spline Table ---
+    double Iz; // or Iz_a depending on your naming
+    int last_index = 0; // Optimizer for the spline search
     
-    // Evaluate the boundary condition so Iz(a=1) = 0
-    double boundary_term = tanh(fit_C); 
-
-    // The actual Iz value for this scale factor
-    double Iz = fit_A * (tanh(fit_B * log_a + fit_C) + fit_D * log_a - boundary_term);
-    // -----------------------------------------------------------------------------
-
+    class_call(array_interpolate_spline(
+        pba->wgb_a_array,
+        pba->wgb_spline_size,
+        pba->wgb_Iz_array,
+        pba->wgb_ddIz_array,
+        1,       // Number of columns to evaluate
+        a,       // The current scale factor the ODE solver is at
+        &last_index,
+        &Iz,     // The output variable
+        1,       // Output array size
+        pba->error_message),
+        pba->error_message, pba->error_message);
+    // ---------------------------------------------------------------
     // 2. Pre-calculate common powers for psi(a)
     double a_pow_n2_7 = pow(a, -2.7);
     double inv_term_2_9a_5_6 = pow(2.9 * a, -5.6);
@@ -837,22 +903,23 @@ break;
     double Om0 = pba->Omega0_b + pba->Omega0_cdm;
     double Or0 = pba->Omega0_g;
 
-    // --- 1. Calculate the Integral (Iz_a) using the Log-Space Tanh Approximation ---
-    double fit_A = -7.33490286e-02;
-    double fit_B = -1.74938682e+00;
-    double fit_C = -1.82962914e+00;
-    double fit_D = -1.92439539e-03;
-
-    // Protect against log(0) at the absolute beginning of time
-    double log_a = (a > 1e-15) ? log(a) : log(1e-15);
+    // --- 1. Fetch the exact Integral (Iz) using the Spline Table ---
+    double Iz; // or Iz_a depending on your naming
+    int last_index = 0; // Optimizer for the spline search
     
-    // Evaluate the boundary condition
-    double boundary_term = tanh(fit_C); 
-
-    // The actual Iz value for the current scale factor 'a'
-    double Iz_a = fit_A * (tanh(fit_B * log_a + fit_C) + fit_D * log_a - boundary_term);
-    // -----------------------------------------------------------------------------
-
+    class_call(array_interpolate_spline(
+        pba->wgb_a_array,
+        pba->wgb_spline_size,
+        pba->wgb_Iz_array,
+        pba->wgb_ddIz_array,
+        1,       // Number of columns to evaluate
+        a,       // The current scale factor the ODE solver is at
+        &last_index,
+        &Iz,     // The output variable
+        1,       // Output array size
+        pba->error_message),
+        pba->error_message, pba->error_message);
+    // ---------------------------------------------------------------
     // 2. Calculate the denominator D at point a
     // FIX: Subtracted the integral term to match analytical transformation!
     double Da = 3.0 * (1.0 - Om0 - Or0) - 6.0 * Cn * Iz_a;
@@ -964,6 +1031,22 @@ int background_init(
   class_call(background_checks(ppr,pba),
              pba->error_message,
              pba->error_message);
+  // =========================================================================
+  // WGB MODEL: INITIALIZE CUBIC SPLINE BEFORE ODE SOLVER
+  // =========================================================================
+  if (pba->has_fld == _TRUE_) {
+      if (pba->fluid_equation_of_state == WGB) {
+          class_call(background_wgb_spline_init(pba), 
+                     pba->error_message, 
+                     pba->error_message);
+      }
+  }
+  // =========================================================================
+
+  /** - integrate the background over log(a), allocate and fill the background table */
+  class_call(background_solve(ppr,pba),
+             pba->error_message,
+             pba->error_message);             
 
   /** - integrate the background over log(a), allocate and fill the background table */
   class_call(background_solve(ppr,pba),
@@ -1007,7 +1090,12 @@ int background_free(
              pba->error_message);
 
   pba->is_allocated = _FALSE_;
-
+  
+  if (pba->has_fld == _TRUE_ && pba->fluid_equation_of_state == WGB) {
+      free(pba->wgb_a_array);
+      free(pba->wgb_Iz_array);
+      free(pba->wgb_ddIz_array);
+  }
   return _SUCCESS_;
 }
 

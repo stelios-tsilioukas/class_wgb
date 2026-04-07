@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 # 1. Define the updated filename with the correct folder path!
-filename = 'output/explanatory-wgb01_background.dat' 
+filename = 'output/explanatory-wgb00_background.dat' 
 
 # Safety check to ensure the file exists before we try to load it
 if not os.path.exists(filename):

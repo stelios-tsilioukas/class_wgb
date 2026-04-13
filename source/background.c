@@ -144,8 +144,8 @@ int background_wgb_spline_init(struct background *pba) {
     class_alloc(pba->wgb_Iz_array, pba->wgb_spline_size * sizeof(double), pba->error_message);
     class_alloc(pba->wgb_ddIz_array, pba->wgb_spline_size * sizeof(double), pba->error_message);
 
-    // 3. Create a logarithmic grid for the scale factor 'a' (from 1e-14 to 1.0)
-    double a_min = 1e-14;
+    // 3. Create a logarithmic grid for the scale factor 'a' (from 1e-20 to 1.0)
+    double a_min = 1e-20;
     double a_max = 1.0;
     double dln_a = log(a_max / a_min) / (pba->wgb_spline_size - 1);
 
@@ -746,6 +746,13 @@ int background_w_fld(
    
   case WGB:
 {
+    if (a < 1e-20) {
+        *w_fld = -1.0;
+        *dw_over_da_fld = 0.0;
+        *integral_fld = 0.0;
+        break; // This kicks it out of the switch block instantly
+    }
+
     // Retrieve your custom parameter
     double Cn = pba->Cn_wgb;
 

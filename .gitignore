@@ -1,18 +1,59 @@
+# ============================================================
+# class_wgb .gitignore
+# ============================================================
+
+# --- CLASS compiled products ---
 output/
-*~
 build/
 class
-*.prof
-*.ini
 libclass.a
-*out
-python/classy.cpp
-*.pyc
-python/build/
+*.o
+*.opp
+*.a
+*.so
+*.dylib
 *.dSYM
+*.prof
+*out
+*~
+
+# --- Python compiled/generated ---
+*.pyc
+*.pyo
+__pycache__/
+.ipynb_checkpoints/
+classy.egg-info/
+*.egg-info/
+python/classy.cpp
+python/build/
+
+# --- Virtual environments ---
+venv/
+.venv/
+
+# --- INI files (personal run configs, keep explanatory files) ---
+*.ini
+!explanatory.ini
+!explanatory-wgb.ini
+!test_bg.ini
+
+# --- Large archives ---
+*.tar.gz
+*.zip
+
+# --- External interface caches ---
 RealSpaceInterface/cache/
-.DS_Store
+
+# --- Docs build ---
 doc/manual/html
 doc/manual/latex
-output/
-classy.egg-info/
+
+# --- Mac system files ---
+.DS_Store
+.AppleDouble
+
+# --- Editor files ---
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,120 +1,196 @@
-CLASS: Cosmic Linear Anisotropy Solving System  {#mainpage}
-==============================================
+# class_wgb
 
-Authors: Julien Lesgourgues, Thomas Tram, Nils Schoeneberg
+A modified version of the [CLASS](https://github.com/lesgourg/class_public) Boltzmann code (v3.3.4.0) implementing the **Wald–Gauss–Bonnet (WGB) topological dark energy** model.
 
-with several major inputs from other people, especially Benjamin
-Audren, Simon Prunet, Jesus Torrado, Miguel Zumalacarregui, Francesco
-Montanari, Deanna Hooper, Samuel Brieden, Daniel Meinert, Matteo Lucca, etc.
+---
 
-For download and information, see http://class-code.net
+## The WGB Model
 
+Wald–Gauss–Bonnet topological dark energy is a modified cosmological framework derived from the gravity-thermodynamics conjecture applied to the Universe's apparent horizon, with the Wald–Gauss–Bonnet entropy replacing the standard Bekenstein–Hawking one. Assuming a topological connection between the apparent horizon and interior black hole horizons, the modified Friedmann equations describe a dark energy sector whose evolution depends on the black hole formation and merger rates — approximated by the cosmic star formation rate.
 
-Compiling CLASS and getting started
------------------------------------
+This introduces an astrophysics-dependent contribution to the cosmological constant, parametrised by the coupling constant **C_n** (`Cn_wgb` in CLASS).
 
-(the information below can also be found on the webpage, just below
-the download button)
+**ΛCDM limit:** the WGB model reduces exactly to ΛCDM when `Cn_wgb → 0`.
 
-Download the code from the webpage and unpack the archive (tar -zxvf
-class_vx.y.z.tar.gz), or clone it from
-https://github.com/lesgourg/class_public. Go to the class directory
-(cd class/ or class_public/ or class_vx.y.z/) and compile (make clean;
-make class). You can usually speed up compilation with the option -j:
-make -j class. If the first compilation attempt fails, you may need to
-open the Makefile and adapt the name of the compiler (default: gcc),
-of the optimization flag (default: -O4 -ffast-math) and of the OpenMP
-flag (default: -fopenmp; this flag is facultative, you are free to
-compile without OpenMP if you don't want parallel execution; note that
-you need the version 4.2 or higher of gcc to be able to compile with
--fopenmp). Many more details on the CLASS compilation are given on the
-wiki page
+**Two scenarios are implemented:**
+- `Omega_Lambda: 0` — vanishing bare cosmological constant (pure WGB dark energy)
+- `Omega_Lambda:` free — modified Λ scenario
 
-https://github.com/lesgourg/class_public/wiki/Installation
+For full theoretical details see the papers listed in the [Citation](#citation) section.
 
-(in particular, for compiling on Mac >= 10.9 despite of the clang
-incompatibility with OpenMP).
+---
 
-To check that the code runs, type:
+## Modified Files
 
-    ./class explanatory.ini
+The WGB modifications relative to vanilla CLASS v3.3.4.0 are contained in:
 
-The explanatory.ini file is THE reference input file, containing and
-explaining the use of all possible input parameters. We recommend to
-read it, to keep it unchanged (for future reference), and to create
-for your own purposes some shorter input files, containing only the
-input lines which are useful for you. Input files must have a *.ini
-extension. We provide an example of an input file containing a
-selection of the most used parameters, default.ini, that you may use as a
-starting point.
+| File | Description |
+|------|-------------|
+| `source/background.c` | WGB dark energy evolution in the background equations |
+| `source/input.c` | Reading of `Cn_wgb` parameter |
+| `include/background.h` | Declaration of `Cn_wgb` in the background structure |
 
-If you want to play with the precision/speed of the code, you can use
-one of the provided precision files (e.g. cl_permille.pre) or modify
-one of them, and run with two input files, for instance:
+All other files are identical to the CLASS v3.3.4.0 public release.
 
-    ./class test.ini cl_permille.pre
+---
 
-The files *.pre are suppposed to specify the precision parameters for
-which you don't want to keep default values. If you find it more
-convenient, you can pass these precision parameter values in your *.ini
-file instead of an additional *.pre file.
+## Dependencies
 
-The automatically-generated documentation is located in
+- C compiler (`gcc` or `clang`)
+- Python ≥ 3.10
+- Cython ≥ 3.0
+- numpy
+- A Fortran compiler is **not** required
 
-    doc/manual/html/index.html
-    doc/manual/CLASS_manual.pdf
+---
 
-On top of that, if you wish to modify the code, you will find lots of
-comments directly in the files.
+## Compilation
 
-Python
-------
+### 1. Build the C library and executable
 
-To use CLASS from python, or ipython notebooks, or from the Monte
-Python parameter extraction code, you need to compile not only the
-code, but also its python wrapper. This can be done by typing just
-'make' instead of 'make class' (or for speeding up: 'make -j'). More
-details on the wrapper and its compilation are found on the wiki page
+```bash
+cd class_wgb
+make clean && make
+```
 
-https://github.com/lesgourg/class_public/wiki
+This produces `libclass.a` and the `class` executable.
 
-Plotting utility
-----------------
+### 2. Build the Python interface
 
-Since version 2.3, the package includes an improved plotting script
-called CPU.py (Class Plotting Utility), written by Benjamin Audren and
-Jesus Torrado. It can plot the Cl's, the P(k) or any other CLASS
-output, for one or several models, as well as their ratio or percentage
-difference. The syntax and list of available options is obtained by
-typing 'pyhton CPU.py -h'. There is a similar script for MATLAB,
-written by Thomas Tram. To use it, once in MATLAB, type 'help
-plot_CLASS_output.m'
+```bash
+python setup.py build_ext --inplace
+```
 
-Developing the code
---------------------
+This produces `_classy.cpython-*.so` in the root directory.
 
-If you want to develop the code, we suggest that you download it from
-the github webpage
+### 3. Install as a Python package (editable)
 
-https://github.com/lesgourg/class_public
+```bash
+pip install -e .
+```
 
-rather than from class-code.net. Then you will enjoy all the feature
-of git repositories. You can even develop your own branch and get it
-merged to the public distribution. For related instructions, check
+### 4. Verify the installation
 
-https://github.com/lesgourg/class_public/wiki/Public-Contributing
+Run the WGB and ΛCDM example configurations and compare the outputs visually:
 
-Using the code
---------------
+```bash
+rm -f output/* && ./class explanatory-wgb.ini && ./class explanatory.ini && python lcdm_wgb_plots.py
+```
 
-You can use CLASS freely, provided that in your publications, you cite
-at least the paper `CLASS II: Approximation schemes <http://arxiv.org/abs/1104.2933>`. Feel free to cite more CLASS papers!
+This clears previous outputs, runs CLASS with both the WGB and standard ΛCDM settings, then plots a comparison of the two. A successful run confirms the C library, Python interface, and WGB modifications are all working correctly.
 
-Support
--------
+---
 
-To get support, please open a new issue on the
+## WGB Parameters
 
-https://github.com/lesgourg/class_public
+| Parameter | CLASS key | Type | Description |
+|-----------|-----------|------|-------------|
+| `Cn_wgb` | `Cn_wgb` | sampled | WGB coupling constant. ΛCDM limit: `Cn_wgb → 0` |
+| `fluid_equation_of_state` | `fluid_equation_of_state` | fixed | Must be set to `WGB` |
+| `use_ppf` | `use_ppf` | fixed | Must be `yes` |
+| `c_gamma_over_c_fld` | `c_gamma_over_c_fld` | fixed | Set to `0.4` |
+| `Omega_Lambda` | `Omega_Lambda` | fixed/free | Set to `0` for pure WGB scenario |
 
-webpage!
+See `explanatory-wgb.ini` for a fully documented example input file.
+
+---
+
+## Cobaya Integration
+
+To use `class_wgb` with [Cobaya](https://cobaya.readthedocs.io/) for MCMC sampling, add the following to your Cobaya YAML file:
+
+```yaml
+theory:
+  classy:
+    stop_at_error: true
+    extra_args:
+      fluid_equation_of_state: WGB
+      use_ppf: 'yes'
+      c_gamma_over_c_fld: 0.4
+      Omega_Lambda: 0
+      nonlinear_min_k_max: 25
+      N_ncdm: 1
+      N_ur: 2.046
+      non linear: hmcode
+      hmcode_version: 2020
+
+params:
+  Cn_wgb:
+    prior: {min: 0.0, max: 1.0}
+    ref: {dist: norm, loc: 0.2, scale: 0.05}
+    proposal: 0.02
+    latex: C_{n,\mathrm{WGB}}
+```
+
+Make sure `class_wgb` is installed as an editable pip package in your Cobaya environment before running. When Cobaya initialises it will confirm:
+```
+[classy] `classy` module loaded successfully from .../class_wgb
+```
+
+---
+
+## Authors
+
+- **Stylianos A. Tsilioukas** — Department of Physics, University of Thessaly, 35100 Lamia, Greece; National Observatory of Athens, Lofos Nymfon, 11852 Athens, Greece
+- **Maria Petronikolou** — National Observatory of Athens; National Technical University of Athens
+- **Fotios K. Anagnostopoulos** — University of Peloponnese
+- **Spyros Basilakos** — National Observatory of Athens; Academy of Athens
+- **Emmanuel N. Saridakis** — National Observatory of Athens; USTC; Universidad Católica del Norte
+
+---
+
+## Citation
+
+If you use `class_wgb` in your research, please cite:
+
+**Original WGB model (Phys. Rev. D 109, 084010):**
+```bibtex
+@article{Tsilioukas:2024wgb,
+  author  = {Tsilioukas, Stylianos A. and Saridakis, Emmanuel N. and Tzerefos, Charalampos},
+  title   = {Dark energy from topology change induced by microscopic Gauss-Bonnet wormholes},
+  journal = {Phys. Rev. D},
+  volume  = {109},
+  pages   = {084010},
+  year    = {2024},
+  doi     = {10.1103/PhysRevD.109.084010},
+  eprint  = {2312.07486},
+  archivePrefix = {arXiv},
+  primaryClass  = {gr-qc}
+}
+```
+
+**Observational implications paper (arXiv:2501.15927):**
+```bibtex
+@article{Petronikolou:2025wgb,
+  author  = {Petronikolou, Maria and Anagnostopoulos, Fotios K. and
+             Tsilioukas, Stylianos A. and Basilakos, Spyros and
+             Saridakis, Emmanuel N.},
+  title   = {Observational implications of Wald--Gauss--Bonnet topological dark energy},
+  eprint  = {2501.15927},
+  archivePrefix = {arXiv},
+  primaryClass  = {astro-ph.CO},
+  year    = {2025}
+}
+```
+
+**CLASS (the base code):**
+```bibtex
+@article{Blas:2011rf,
+  author  = {Blas, Diego and Lesgourgues, Julien and Tram, Thomas},
+  title   = {The Cosmic Linear Anisotropy Solving System (CLASS) II},
+  journal = {JCAP},
+  volume  = {07},
+  pages   = {034},
+  year    = {2011},
+  doi     = {10.1088/1475-7516/2011/07/034},
+  eprint  = {1104.2933},
+  archivePrefix = {arXiv}
+}
+```
+
+---
+
+## License
+
+The WGB modifications are released under the same license as CLASS.
+The original CLASS code is the property of its authors — see the CLASS [repository](https://github.com/lesgourg/class_public) for details.

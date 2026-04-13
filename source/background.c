@@ -750,8 +750,8 @@ int background_w_fld(
         *w_fld = -1.0;
         *dw_over_da_fld = 0.0;
         *integral_fld = 0.0;
-        break; // This kicks it out of the switch block instantly
-    }
+        return _SUCCESS_;  // <--- Kill the function here!
+      }
 
     // Retrieve your custom parameter
     double Cn = pba->Cn_wgb;
@@ -929,7 +929,7 @@ break;
     // ---------------------------------------------------------------
     // 2. Calculate the denominator D at point a
     // FIX: Subtracted the integral term to match analytical transformation!
-    double Da = 3.0 * (1.0 - Om0 - Or0) - 6.0 * Cn * Iz_a;
+    double Da = 3.0 * (1.0 - Om0 - Or0) - 6.0 * Cn * Iz;
 
     // 3. Calculate the denominator D at point a0 (where a0 = 1)
     // Since Iz(a=1) = 0.0 by definition, the 6*Cn*Iz term vanishes entirely!

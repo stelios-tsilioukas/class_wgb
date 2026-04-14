@@ -41,7 +41,7 @@ print("All files found! Loading data...")
 
 # --- 3. Advanced Grid Setup ---
 fig = plt.figure(figsize=(18, 7))
-fig.suptitle('Cosmological Observables: WGB vs $\Lambda$CDM', fontsize=18, fontweight='bold', y=0.95)
+fig.suptitle('Cosmological Observables: WGB vs $\\Lambda$CDM', fontsize=18, fontweight='bold', y=0.95)
 
 # 2 rows, 3 columns. Height ratio 3:1
 gs = gridspec.GridSpec(2, 3, height_ratios=[3, 1], hspace=0.05, wspace=0.25)

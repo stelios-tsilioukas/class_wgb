@@ -56,4 +56,5 @@ doc/manual/latex
 .vscode/
 .idea/
 *.swp
-*.swo
+*.swo*.bak
+*.bak

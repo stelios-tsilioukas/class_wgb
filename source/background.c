@@ -935,14 +935,13 @@ break;
     // Since Iz(a=1) = 0.0 by definition, the 6*Cn*Iz term vanishes entirely!
     double Da0 = 3.0 * (1.0 - Om0 - Or0);
 
-    // 4. Compute the final integral result: -4 * ln(Da / Da0)
-    // We keep your safety check to prevent ln(negative) in extreme parameter spaces
-    if (Da > 0.0 && Da0 > 0.0) {
-        *integral_fld = -4.0 * log(Da / Da0);
-    } else {
-        // Fallback for non-physical parameter spaces during MCMC sampling
-        *integral_fld = 0.0; 
-    }
+// 4. Compute the final integral result: -4 * ln(Da / Da0)
+    class_test(Da <= 0.0 || Da0 <= 0.0,
+               pba->error_message,
+               "WGB: dark-energy density non-positive (Da=%e, Da0=%e) at a=%e for Cn_wgb=%e; rho_DE crossed zero (unphysical). Rejecting point.",
+               Da, Da0, a, Cn);
+
+    *integral_fld = -4.0 * log(Da / Da0);
 }
 break;
   case EDE:
@@ -1055,10 +1054,7 @@ int background_init(
              pba->error_message,
              pba->error_message);             
 
-  /** - integrate the background over log(a), allocate and fill the background table */
-  class_call(background_solve(ppr,pba),
-             pba->error_message,
-             pba->error_message);
+
 
   /** - find and store a few derived parameters at radiation-matter equality */
   class_call(background_find_equality(ppr,pba),

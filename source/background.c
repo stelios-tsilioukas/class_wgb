@@ -1052,9 +1052,7 @@ int background_init(
   /** - integrate the background over log(a), allocate and fill the background table */
   class_call(background_solve(ppr,pba),
              pba->error_message,
-             pba->error_message);             
-
-
+             pba->error_message);
 
   /** - find and store a few derived parameters at radiation-matter equality */
   class_call(background_find_equality(ppr,pba),

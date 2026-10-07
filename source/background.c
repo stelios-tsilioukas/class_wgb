@@ -786,7 +786,7 @@ int background_w_fld(
     double denom1 = 3.0 * (1.0 - (pba->Omega0_b + pba->Omega0_cdm + pba->Omega0_g));
     
     // The integral term
-    double denom2 = 6.0 * Cn * Iz; 
+    double denom2 = -24.0 * Cn * Iz; // FIX: corrected coefficient (see arXiv derivation, -24 Cn)
     
     // FINAL FIX: Subtract denom2 to match the analytical transformation from z to a!
     *w_fld = -1.0 - (num / (denom1 - denom2));
@@ -866,15 +866,15 @@ case WGB:
     double dpsi_da = psi_a * ((-2.7 / a) + (5.6 * inv_term_2_9a_5_6) / (a * denominator_psi));
 
     // 5. Calculate the main denominator D(a)
-    // FIX 1: Subtracted the integral term
-    double Da = 3.0 * (1.0 - Om0 - Or0) - 6.0 * Cn * Iz;
+    // Corrected: D(a) = 3(1-Om0-Or0) - 24 Cn I(a); with stored Iz=-I(a) this is +24*Cn*Iz
+    double Da = 3.0 * (1.0 - Om0 - Or0) + 24.0 * Cn * Iz; // FIX: corrected coefficient (+24 Cn with Iz=-I(a))
 
     // 6. Final derivative dw/da
-    // Formula: dw/da = (-8*Cn / Da^2) * [ (dpsi_da * Da) + (6*Cn*psi^2 / a) ]
-    double term_sq = (6.0 * Cn * psi_a * psi_a) / a;
+    // Formula: dw/da = (8*Cn / Da^2) * [ -dpsi_da*Da + 24*Cn*psi^2/a ]
+    double term_sq = (24.0 * Cn * psi_a * psi_a) / a; // FIX: coefficient 6 -> 24
     
-    // FIX 2: Both terms are mathematically negative when expanded
-    double numerator_w = -(dpsi_da * Da) - term_sq;
+    // Corrected: with +24 Cn convention the psi^2 term enters with a + sign
+    double numerator_w = -(dpsi_da * Da) + term_sq; // FIX: sign flips (- -> +) with corrected Da
     
     *dw_over_da_fld = (8.0 * Cn / (Da * Da)) * numerator_w;
     
@@ -928,20 +928,20 @@ break;
         pba->error_message, pba->error_message);
     // ---------------------------------------------------------------
     // 2. Calculate the denominator D at point a
-    // FIX: Subtracted the integral term to match analytical transformation!
-    double Da = 3.0 * (1.0 - Om0 - Or0) - 6.0 * Cn * Iz;
+    // Corrected coefficient: +24*Cn*Iz  (Iz = -I(a); D0 uses I(1)=0)
+    double Da = 3.0 * (1.0 - Om0 - Or0) + 24.0 * Cn * Iz; // FIX: corrected coefficient (+24 Cn with Iz=-I(a))
 
     // 3. Calculate the denominator D at point a0 (where a0 = 1)
     // Since Iz(a=1) = 0.0 by definition, the 6*Cn*Iz term vanishes entirely!
     double Da0 = 3.0 * (1.0 - Om0 - Or0);
 
-// 4. Compute the final integral result: -4 * ln(Da / Da0)
+// 4. Compute the final integral result: +1 * ln(Da / Da0) [corrected prefactor]
     class_test(Da <= 0.0 || Da0 <= 0.0,
                pba->error_message,
                "WGB: dark-energy density non-positive (Da=%e, Da0=%e) at a=%e for Cn_wgb=%e; rho_DE crossed zero (unphysical). Rejecting point.",
                Da, Da0, a, Cn);
 
-    *integral_fld = -4.0 * log(Da / Da0);
+    *integral_fld = 1.0 * log(Da / Da0); // FIX: prefactor -4 -> +1 (kappa/beta = 24/-24)
 }
 break;
   case EDE:
